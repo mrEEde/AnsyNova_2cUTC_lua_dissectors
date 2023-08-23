@@ -39,7 +39,7 @@ local systcpda_dstip = ProtoField.uint32("systcpda.dstip", "Destination IP ", ba
 local systcpda_srcport = ProtoField.uint16("systcpda.srcport", "Source Port")
 local systcpda_dstport = ProtoField.uint16("systcpda.dstport", "Destination Port")
 local systcpda_recnum = ProtoField.uint16("systcpda.recnum", "Record number")
-local systcpda_proto = ProtoField.uint8("systcpda.proto", "Protocol")
+local systcpda_proto = ProtoField.uint8("systcpda.proto", "Protocol",base.DEC)
 local systcpda_vlanid = ProtoField.uint16("systcpda.vlanid", "VLAN ID")
 local systcpda_intfidx = ProtoField.uint32("systcpda.intfidx", "Interface index")
 
@@ -65,7 +65,7 @@ proto_systcpda.fields = {
 	systcpda_srcport,
 	systcpda_dstport,
 	systcpda_recnum,
-	systcpda_proto,      -- 06 = TCP , 252 = SMC-LLC - der muss weg 
+	systcpda_proto,      -- 06 = TCP , 252 = SMC-LLC  
 	systcpda_vlanid,
 	systcpda_intfidx,
 
@@ -94,7 +94,7 @@ The 2cUTC extension provided for the SYSTCPDA componentxxx :
 function proto_systcpda.dissector(buffer, pinfo, tree)
 	length = buffer:len()
 	if length == 0 then return end
-	
+
 	pinfo.cols.protocol = proto_systcpda.name
 
     local subtree = tree:add(proto_systcpda, buffer())
@@ -136,9 +136,6 @@ function proto_systcpda.dissector(buffer, pinfo, tree)
 
 	-- see above, special data inserted by 2cUTC
 	pinfo.cols.info:append(" " .. string.upper(extension_type))
-	if systcpda_proto==252 then 
-		pinfo.cols.info="SMC-LLC" 
-	end
 	
 	if extension_type == "smc" then
 		Dissector.get("systcpda_smc"):call(buffer(112, math.min(length, ctrace_len) - 112):tvb(), pinfo, subtree)

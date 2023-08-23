@@ -76,7 +76,7 @@ proto_systcpda_smc.fields = {
 
     systcpda_smc_qp_lcl,
     systcpda_smc_qp_rmt,
-    smc_proto,
+    systcpda_proto,
     systcpda_smc_llc_func,
     systcpda_smc_llc_len,
     systcpda_smc_llc_flg,
@@ -162,17 +162,23 @@ function proto_systcpda_smc.dissector(buffer, pinfo, tree)
         subtree:add(systcpda_smc_qp_lcl, buffer(71, 3))
         subtree:add(systcpda_smc_qp_rmt, buffer(68, 3))
 
-   	    -- Show the smc_payload as a big block (if desired)
-        subtree:add(systcpda_smc_payload, buffer(extension_length, payload_length))
-
         -- Dissect the smc_payload
         local payload = buffer(extension_length)
-        subtree:add(systcpda_smc_llc_func, payload(0, 1))
-        subtree:add(systcpda_smc_llc_len, payload(1, 2))
-        subtree:add(systcpda_smc_llc_flg, payload(3, 1))
-        subtree:add(systcpda_smc_llc_lnkid, payload(4, 1))
-        subtree:add(systcpda_smc_llc_rsncd, payload(6, 3))
-
+--[[                  --     This section does not work here due to systcpda_proto being "userdata"
+        if systcpda_proto == 252 then                       -- SMC LLC Logical Link Control 
+            pinfo.cols.info:append(systcpda_proto)
+            subtree:add(systcpda_smc_llc_func, payload(0, 1))
+            subtree:add(systcpda_smc_llc_len, payload(1, 2))
+            subtree:add(systcpda_smc_llc_flg, payload(3, 1))
+            subtree:add(systcpda_smc_llc_lnkid, payload(4, 1))
+            subtree:add(systcpda_smc_llc_rsncd, payload(6, 3))
+        elseif systcpda_proto == 6  then                   -- Otherwise it must be TCP payload 
+   	    -- Show the smc_payload as a big block (if desired)
+            subtree:add(systcpda_smc_payload, buffer(extension_length, payload_length))
+        elseif systcpda_proto>0 then                        -- Anything else should not occcur 
+            print("unkown SMC LLC function")
+        end
+]]
     else
 
        	-- dissect SMC-R
@@ -188,4 +194,25 @@ function proto_systcpda_smc.dissector(buffer, pinfo, tree)
 
     end
     
+end
+
+function get_opcode_name(opcode)     -- translate llc function code to description 
+  local opcode_name = "Unknown"
+                                                                   -- 0x01 - 0x?? 
+      if opcode ==  1 then opcode_name = "Confirm Link"            -- 0x01 
+  elseif opcode ==  7 then opcode_name = "Test Link"               -- 0x07 
+        -- V2 suffix for opcode 0x20 - 0x29    
+  elseif opcode == 33 then opcode_name = "Confirm Link V2"         -- 0x21 
+  elseif opcode == 34 then opcode_name = "Add Link V2"
+  elseif opcode == 35 then opcode_name = "╚Dunno■yet╝"
+  elseif opcode == 36 then opcode_name = "Delete Link V2"          -- with reason 
+  elseif opcode == 37 then opcode_name = "Request Add Link V2"
+  elseif opcode == 38 then opcode_name = "Confirm Rkey V2"
+  elseif opcode == 39 then opcode_name = "Test Link V2"            -- 0x27  
+  elseif opcode == 40 then opcode_name = "╚Dunno■yet╝"
+  elseif opcode == 41 then opcode_name = "Delete RKey Set V2"       -- 0x29 
+  else                     opcode_name = " Never seen before " 
+  end
+
+  return opcode_name
 end
